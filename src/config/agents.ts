@@ -46,6 +46,12 @@ export const AGENT_TYPES: AgentTypeOption[] = [
 
 export const AGENT_TEMPLATES = AGENT_TYPES.map((a) => a.template);
 
+// Skills this app installs into every agent it creates. Hermes loads them from
+// ~/.hermes/skills, which lives on the instance's persistent volume — so they are runtime
+// state, not image content, and the create route writes them over exec. Each entry is a
+// folder under skills/ holding a SKILL.md.
+export const SKILLS = ["whats-installed"];
+
 // Labels for the "open in new tab" buttons. Ports come from the live instance
 // (instance.ports), never this map — it only prettifies the ports inherited from the
 // Hermes base. A port your own image adds falls back to "Port {n}" until you name it here.

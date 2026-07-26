@@ -148,7 +148,8 @@ Browser ─▶ Next.js (this app) ─▶ control plane  https://api.agent37.com/
 | `supabase/migrations/0001_init.sql` | Schema, RLS policies (dormant backstop), SECURITY DEFINER RPCs; grants tables to the service role only (clients have no direct DB access) |
 | `src/lib/supabase/admin.ts` | Service-role client (server-only, bypasses RLS) — the DB egress |
 | `scripts/setup.mjs` | One-command setup (`npm run setup`): Supabase, then publishes the template |
-| `template/` | The image: `Dockerfile` + `skills/`. This folder *is* the build context |
+| `template/` | The image: just a `Dockerfile`. This folder *is* the build context |
+| `skills/` | Skills the app installs into every new agent (`SKILLS` in `src/config/agents.ts`) |
 | `scripts/release-agent.mjs` | Builds + publishes `template/` (`npm run release:agent`) |
 
 ## Commands
@@ -169,7 +170,7 @@ dashboard steps.
 ## The custom image
 
 `template/` is the build context and nothing else: a `Dockerfile` on the full Hermes
-image plus `skills/`, which it copies in. `npm run release:agent`
+image. `npm run release:agent`
 (`scripts/release-agent.mjs`) uploads that folder to Agent37, which builds it on its
 own `linux/amd64` builders and publishes it as the workspace template `custom-agent`.
 No local Docker, no registry. `npm run setup` runs the same publish once, so a fresh
@@ -181,11 +182,14 @@ What actually bites:
 
 - **`/home` is masked.** `/home/node` and `/home/linuxbrew` are persistent volumes
   mounted over the image at runtime, so anything baked there disappears. Binaries →
-  `/usr/local/bin` (hence `NPM_CONFIG_PREFIX=/usr/local` for npm globals), skills →
-  `/usr/local/share/agent37/default-skills/`, everything else → `/opt`.
-- **Skills are seeded, not synced.** The entrypoint copies `default-skills` into
-  `~/.hermes/skills` at boot; a skill already there is never overwritten, so changing
-  one only affects agents created after the rebuild.
+  `/usr/local/bin` (hence `NPM_CONFIG_PREFIX=/usr/local` for npm globals), everything
+  else → `/opt`.
+- **Skills can't ship in the image.** Hermes reads `~/.hermes/skills`, which is on the
+  agent's persistent volume, so anything the image puts there is masked. (The platform
+  used to copy a baked `default-skills` dir in at boot; that mechanism was removed in
+  July 2026 because a permissions failure crash-looped containers.) This app keeps its
+  skills in `skills/` and writes them over `exec` when it creates an agent — see
+  `installSkills` in `src/app/api/agents/route.ts`. Existing agents keep what they have.
 - **Keep the base `ENTRYPOINT`.** It starts Hermes and the gateway that serves chat —
   override it and the Chat and Files tabs go dead.
 - **The cloud build takes no build args.** `agent37 templates build` has `--name` and

@@ -1,6 +1,8 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { agent37 } from "@/lib/agent37";
 import { requireAdmin, requireMember, requireUser } from "@/lib/auth";
-import { AGENT_TEMPLATES, DEFAULT_AGENT } from "@/config/agents";
+import { AGENT_TEMPLATES, DEFAULT_AGENT, SKILLS } from "@/config/agents";
 import { usdToMicros } from "@/lib/format";
 import { ApiError, handleError, json, readJson } from "@/lib/http";
 import type { Agent, AgentRow, MergedAgent, Template } from "@/lib/types";
@@ -17,6 +19,24 @@ async function getTemplates(): Promise<Template[]> {
   const { data } = await agent37.listTemplates();
   templateCache = { at: Date.now(), data };
   return data;
+}
+
+// Give a new agent the skills in skills/. Hermes reads ~/.hermes/skills, which lives on the
+// instance's persistent volume, so skills are runtime state — an image can't ship them. Base64
+// keeps arbitrary markdown out of shell quoting. Best-effort on purpose: an agent that came up
+// is worth more than one that failed creation because a skill didn't land.
+async function installSkills(agentId: string) {
+  for (const skill of SKILLS) {
+    try {
+      const body = await readFile(path.join(process.cwd(), "skills", skill, "SKILL.md"), "base64");
+      await agent37.exec(
+        agentId,
+        `mkdir -p ~/.hermes/skills/${skill} && echo ${body} | base64 -d > ~/.hermes/skills/${skill}/SKILL.md`
+      );
+    } catch (e) {
+      console.error(`installing skill ${skill} failed`, agentId, e);
+    }
+  }
 }
 
 async function resolveTemplate(): Promise<string | undefined> {
@@ -117,6 +137,8 @@ export async function POST(request: Request) {
       metadata: { app_workspace: workspaceId },
       budget: { monthly_cap_micros: usdToMicros(DEFAULT_AGENT.monthlyCapUsd) },
     });
+
+    await installSkills(agent.id);
 
     const { error } = await db.from("agents").insert({
       agent37_id: agent.id,
