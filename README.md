@@ -1,8 +1,8 @@
 # Custom agent image
 
 The [Agent37 Starter Kit](https://github.com/agent37-platform/starter-kit) — a working
-agent app with auth, chat, files and integrations — running on **your own image**
-instead of a stock one.
+agent app with auth, chat, files and integrations — running on **your own custom Docker image**
+ as a template.
 
 <p align="center">
   <img src="screenshots/demo.gif" alt="The dashboard and per-agent workspace" width="100%" />
