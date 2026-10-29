@@ -65,8 +65,12 @@ Two planes, one `sk_live_` key — and this template now drives **both**. The
 | [Templates](https://www.agent37.com/docs/agents-api/templates) | the agent images you can provision | ✅ |
 | [Managed services & budgets](https://www.agent37.com/docs/agents-api/budgets) | per-agent managed-spend cap | ✅ |
 | [Billing](https://www.agent37.com/docs/agents-api/billing) | wallet, compute prepay, usage | ✅ (usage) |
-| [Run commands](https://www.agent37.com/docs/agents-api/exec) | exec a command inside an instance | available, not used |
+| [Run commands](https://www.agent37.com/docs/agents-api/exec) | exec a command inside an instance | ✅ (skills) |
 | [Errors](https://www.agent37.com/docs/agents-api/errors) | machine-readable error codes | ✅ (mapped in `Agent37Error`) |
+
+Exec is the one row not called on `api.agent37.com`: this app sends it to
+`https://sandbox.agent37.app/v1/instances/{id}/exec` with the `X-Agent37-Key` header, which the
+machine the instance runs on answers directly. The `api.agent37.com` form still works, a hop slower.
 
 The **Integrations** tab is also control plane: it manages a per-agent Composio
 entity through `/instances/{id}/integrations/*` (toolkits / connect / connections).
@@ -96,9 +100,10 @@ own dashboard / terminal / files UI in a new tab.
 
 ```
 Browser ─▶ Next.js (this app) ─▶ control plane  https://api.agent37.com/v1   (instances, integrations)
+   │            │              └▶ sandbox        https://sandbox.agent37.app/v1      (exec)
    │            │              └▶ data plane     https://{instance}.agent37.app/v1   (chat, files)
-   │            │                                 (one server-side sk_live_ key, both planes:
-   │            │                                  Bearer on the control plane, X-Agent37-Key on the instance)
+   │            │                                 (one server-side sk_live_ key everywhere:
+   │            │                                  Bearer on the control plane, X-Agent37-Key on agent37.app)
    │            │
    │            └─▶ Supabase: Auth (browser, anon key) + Postgres (server-only, service-role key):
    │                          users, workspaces, members, agent mirror
